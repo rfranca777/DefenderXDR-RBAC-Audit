@@ -1,0 +1,5 @@
+# Generated reports (contain tenant-specific data)
+DefenderXDR-RBAC-Audit_*.html
+
+# PowerShell temp
+*.ps1xml
