@@ -314,7 +314,34 @@ $svg1+="<text x='0' y='24' fill='#484f58' font-size='6' font-style='italic'>Pass
 $svg1+="</g>`n"
 $svgH1 = $legendY + 40
 
-# ── Tabela: Caminhos de Acesso (nova - baseada em accessPaths)
+# ── Tabela: RBAC do Defender XDR (FOCO PRINCIPAL)
+$tblRbacXdr = ""
+foreach($role in $dR.value){
+    $permShort = (($role.rolePermissions | ForEach-Object { $_.allowedResourceActions }) -replace 'microsoft\.xdr/','') -replace '/\*/manage',''
+    $assignments = $dA.value | Where-Object { $_.roleDefinitionId -eq $role.id }
+    if ($assignments.Count -eq 0) {
+        $tblRbacXdr += "<tr><td style='color:#3fb950;font-weight:600'>$($role.displayName)</td><td class='s'>$permShort</td><td colspan='3' style='color:#6e7681'>(sem assignment)</td></tr>`n"
+    } else {
+        foreach($a in $assignments){
+            foreach($pid3 in $a.principalIds){
+                $obj3 = Get-MgDirectoryObject -DirectoryObjectId $pid3 -EA SilentlyContinue
+                $ot3 = $obj3.AdditionalProperties.'@odata.type' -replace '#microsoft.graph.',''
+                $on3 = $obj3.AdditionalProperties.displayName
+                $scope3 = if($a.appScopeIds -contains "/"){"Global (todos workloads)"}else{$a.appScopeIds -join ","}
+                $memberList3 = "-"
+                if($ot3 -eq 'group'){
+                    $ms3 = Get-MgGroupMember -GroupId $pid3 -EA SilentlyContinue
+                    $memberList3 = ($ms3 | ForEach-Object {"$($_.AdditionalProperties.displayName)"}) -join ", "
+                    if(!$memberList3){$memberList3="(vazio)"}
+                }
+                $typeBC3 = if($ot3 -eq 'group'){"#3fb95033;color:#3fb950"}else{"#1f6feb33;color:#58a6ff"}
+                $tblRbacXdr += "<tr><td style='color:#3fb950;font-weight:600'><a href='$($portal.Perms)' target='_blank' style='color:#3fb950;text-decoration:none'>$($role.displayName)</a></td><td class='s'>$permShort</td><td><span style='background:$typeBC3;padding:1px 6px;border-radius:8px;font-size:10px'>$ot3</span> <b>$on3</b></td><td>$scope3</td><td>$memberList3</td></tr>`n"
+            }
+        }
+    }
+}
+
+# ── Tabela: Caminhos de Acesso (accessPaths)
 $tblDetail=""
 foreach($ap in ($accessPaths | Sort-Object Level,Principal)){
     $lvlCol = if($levelColors.ContainsKey($ap.Level)){$levelColors[$ap.Level]}else{"#8b949e"}
@@ -433,17 +460,28 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 </div></div>
 
 <div class="cds">
-<div class="cd c1"><div class="n">$tRA</div><div class="l">Entra ID Role<br>Assignments</div></div>
-<div class="cd c2"><div class="n">$tRB</div><div class="l">Defender RBAC<br>Custom Roles</div></div>
-<div class="cd c3"><div class="n">$tEv</div><div class="l">Eventos de Alteração<br>(últimos $DaysBack dias)</div></div>
-<div class="cd c4"><div class="n">$($dGrp.Count)</div><div class="l">Grupos no<br>Unified RBAC</div></div>
+<div class="cd c2"><div class="n">$($dR.value.Count)</div><div class="l">Custom Roles<br>no RBAC do XDR</div></div>
+<div class="cd c4"><div class="n">$($dGrp.Count)</div><div class="l">Grupos atribuídos<br>no RBAC</div></div>
+<div class="cd c1"><div class="n">$tRA</div><div class="l">Entra ID Roles<br>(acesso complementar)</div></div>
+<div class="cd c3"><div class="n">$totalRbacChanges</div><div class="l">Alterações RBAC<br>(últimos $DaysBack dias)</div></div>
 <div class="cd c5"><div class="n">$aWL<span style='font-size:14px;color:#6e7681'>/4</span></div><div class="l">Workloads<br>Ativos</div></div>
 </div>
 
-<!-- S1: QUEM TEM ACESSO (pergunta #1 do cliente) -->
-<div class="sc"><div class="st">&#x1F465; 1. Quem tem acesso ao Defender XDR<a href="$($portal.Entra)" target="_blank">Entra ID &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Esta é a pergunta principal:</b> Quem tem acesso ao Defender XDR, com que <b>nível de acesso</b> e por qual <b>caminho</b>? A tabela mostra cada principal, seu tipo (user, group, service principal), o nível de acesso (<span style="color:#f85149">FULL ADMIN</span>, <span style="color:#ff7b72">FULL SECURITY</span>, <span style="color:#3fb950">READ-ONLY</span>, etc.), a role/RBAC que concede o acesso, e o caminho (direto ou via grupo).<br><br>
-<b>Achados neste tenant:</b> <b>$uniquePrincipals</b> principals com acesso via <b>$($accessPaths.Count)</b> caminhos diferentes. $nU usuários, $nG grupos, $nS service principals.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS service principals com acesso privilegiado</b> - avaliar necessidade."})$(if($dGrp.Count -gt 0){" Grupo(s) no RBAC: <b>$($dGrp -join ', ')</b>."})<br>
+<!-- S1: RBAC DO DEFENDER XDR (FOCO PRINCIPAL) -->
+<div class="sc"><div class="st" style="background:#1a2e1a">&#x1F512; 1. RBAC do Defender XDR - Custom Roles e Assignments<a href="$($portal.Perms)" target="_blank">Permissions &#x2192;</a></div><div class="sb">
+<div class="rt" style="border-left-color:#3fb950"><b>FOCO PRINCIPAL:</b> Esta seção mostra as <b>custom roles configuradas no Unified RBAC do Defender XDR</b> (portal security.microsoft.com → Permissions → Roles). Cada role define permissões granulares por categoria: <code>secops</code> (operações SOC), <code>securityposture</code> (postura), <code>configuration</code> (configurações), <code>dataops</code> (dados). As roles são atribuídas a <b>grupos de segurança</b> do Entra ID - qualquer membro do grupo herda as permissões.<br><br>
+<b>Achados:</b> <b>$($dR.value.Count)</b> custom role(s) configurada(s), <b>$($dGrp.Count)</b> grupo(s) atribuído(s).<br>
+&#x1F517; <a href="$($portal.Perms)" target="_blank">Abrir Permissions no Portal</a> | &#x1F4D6; <a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank">Ref: Custom RBAC Roles</a></div>
+<div style="overflow:auto"><table style="min-width:900px"><thead><tr><th style="min-width:120px">Custom Role</th><th style="min-width:200px">Permissões</th><th style="min-width:180px">Atribuída a</th><th style="min-width:140px">Escopo</th><th style="min-width:200px">Membros (acesso efetivo)</th></tr></thead><tbody>
+$tblRbacXdr
+</tbody></table></div></div></div>
+
+<!-- S1b: EVIDÊNCIAS RBAC -->
+
+<!-- S1c: ACESSO COMPLEMENTAR VIA ENTRA ID -->
+<div class="sc"><div class="st">&#x1F511; 1c. Acesso complementar via Entra ID Roles<a href="$($portal.Entra)" target="_blank">Entra ID &#x2192;</a></div><div class="sb">
+<div class="rt"><b>Contexto:</b> Além do RBAC do Defender, as <b>Entra ID Roles</b> (Security Administrator, Global Administrator, etc.) também concedem acesso ao portal. Estas roles são <b>genéricas</b> - dão acesso a todos os workloads sem granularidade. A tabela mostra cada principal, nível de acesso e caminho.<br><br>
+<b>Achados:</b> <b>$uniquePrincipals</b> principals com <b>$($accessPaths.Count)</b> caminhos de acesso. $nU usuários, $nS service principals.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS SPs com acesso privilegiado</b>."})</div>
 &#x1F4D6; <a href="https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference" target="_blank">Ref: Entra ID Roles</a> | <a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank">Custom RBAC</a></div>
 <div style="max-height:500px;overflow:auto"><table style="min-width:800px"><thead><tr><th style="min-width:180px">Principal</th><th style="min-width:100px">Tipo</th><th style="min-width:120px">Nível de Acesso</th><th style="min-width:180px">Role / RBAC</th><th style="min-width:180px">Caminho</th></tr></thead><tbody>
 $tblDetail
