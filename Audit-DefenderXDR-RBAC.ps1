@@ -347,10 +347,18 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 <div class="cd c5"><div class="n">$aWL<span style='font-size:14px;color:#6e7681'>/4</span></div><div class="l">Workloads<br>Ativos</div></div>
 </div>
 
-<!-- S1: MAPA -->
-<div class="sc"><div class="st">&#x1F5FA;&#xFE0F; 1. Mapa de Permissões<a href="$($portal.Perms)" target="_blank">Portal &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> O Defender XDR agrega 4 soluções (MDE, MDO, MDI, MDCA) num portal unificado. O acesso é controlado por <b>Entra ID Roles</b> (à direita, com &#x1F511;) e <b>Grupos do Unified RBAC</b> (à direita, com &#x1F465;). À esquerda estão os workloads com status de ativação. O número em cada role indica quantos principals têm acesso. Linhas tracejadas mostram o fluxo: workload → Defender XDR → role/grupo.<br><br>
-<b>Como ler:</b> Se um workload está ativo (&#x25CF; verde) mas nenhuma role tem membros, o acesso pode estar vindo de Global Administrator ou de um grupo RBAC.<br>
+<!-- S1: QUEM TEM ACESSO (pergunta #1 do cliente) -->
+<div class="sc"><div class="st">&#x1F465; 1. Quem tem acesso ao Defender XDR<a href="$($portal.Entra)" target="_blank">Entra ID &#x2192;</a></div><div class="sb">
+<div class="rt"><b>Esta é a pergunta principal:</b> Lista <b>todos</b> os usuários, grupos e service principals que têm acesso ao portal do Defender XDR. As permissões vêm de duas fontes: <b>Entra ID Roles</b> (roles globais como Security Administrator) e <b>Grupos do Unified RBAC</b> (roles customizadas no Defender). Cada linha mostra a role, o tipo de principal, o nome e um link para o Entra ID.<br><br>
+<b>Achados neste tenant:</b> <b>$nU</b> usuários, <b>$nG</b> grupos e <b>$nS</b> service principals com acesso.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS service principals com acesso privilegiado</b> - avaliar necessidade."})$(if($dGrp.Count -gt 0){" Grupo(s) no Unified RBAC: <b>$($dGrp -join ', ')</b>."})<br>
+&#x1F4D6; <a href="https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference" target="_blank">Ref: Entra ID Roles</a> | <a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank">Custom RBAC</a></div>
+<div style="max-height:500px;overflow:auto"><table style="min-width:700px"><thead><tr><th style="min-width:180px">Role / RBAC</th><th style="min-width:100px">Tipo</th><th style="min-width:200px">Nome</th><th style="min-width:150px">ID</th></tr></thead><tbody>
+$tblDetail
+</tbody></table></div></div></div>
+
+<!-- S2: MAPA VISUAL (contexto do acesso) -->
+<div class="sc"><div class="st">&#x1F5FA;&#xFE0F; 2. Mapa de Permissões<a href="$($portal.Perms)" target="_blank">Portal &#x2192;</a></div><div class="sb">
+<div class="rt"><b>Visão arquitetural:</b> O Defender XDR (centro) agrega 4 workloads (esquerda). O acesso é controlado por Entra ID Roles e Grupos RBAC (direita). O badge numerico indica quantos principals estão atribuídos. Passe o mouse para ver detalhes de cada elemento.<br>
 &#x1F4D6; <a href="https://learn.microsoft.com/defender-xdr/manage-rbac" target="_blank">Ref: Unified RBAC</a></div>
 <svg viewBox="0 0 490 $svgH1" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:#0d1117;border-radius:6px;border:1px solid #21262d;font-family:'Segoe UI',sans-serif">
 <text x='65' y='38' fill='#6e7681' font-family='Segoe UI' font-size='6' text-anchor='middle' font-weight='600'>WORKLOADS</text>
@@ -359,18 +367,15 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 $svg1
 </svg></div></div>
 
-<!-- S2: TABELA DETALHADA -->
-<div class="sc"><div class="st">&#x1F4CB; 2. Quem tem acesso ao Defender XDR<a href="$($portal.Entra)" target="_blank">Entra ID &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Esta tabela consolida <b>todas</b> as fontes de acesso: Entra ID Roles (atribuição direta) e Grupos do Unified RBAC. Para cada entrada, mostra o tipo de principal (usuário, grupo ou service principal), o nome e o ID mascarado.<br><br>
-<b>Achados neste tenant:</b> <b>$nU</b> usuários, <b>$nG</b> grupos e <b>$nS</b> service principals com acesso ao Defender XDR.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS service principals com acesso privilegiado</b> - avaliar necessidade."})$(if($dGrp.Count -gt 0){" Grupo(s) no RBAC: <b>$($dGrp -join ', ')</b>."})<br>
-&#x1F4D6; <a href="https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference" target="_blank">Ref: Entra ID Roles</a> | <a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank">Custom RBAC</a></div>
-<div style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Role / RBAC</th><th>Tipo</th><th>Nome</th><th>ID</th></tr></thead><tbody>
-$tblDetail
-</tbody></table></div></div></div>
+<!-- S3: O QUE MUDOU (pergunta #2 do cliente) -->
+<div class="sc"><div class="st">&#x1F50D; 3. Eventos de Alteração de Acesso (últimos $DaysBack dias)<a href="$($portal.Audit)" target="_blank">Audit Log &#x2192;</a></div><div class="sb">
+<div class="rt"><b>Esta é a segunda pergunta:</b> Quem alterou permissões recentemente? Cada linha é uma alteração detectada. Borda <span style="color:#f85149">&#x25CF; vermelha</span> = alta severidade (role/RBAC). Borda <span style="color:#d29922">&#x25CF; amarela</span> = média (grupo). Verifique: (1) conta administrativa esperada? (2) horário normal? (3) IP conhecido?</div>
+$(if($tblEv){"<div style='max-height:400px;overflow:auto'><table style='min-width:950px'><thead><tr><th style='min-width:130px'>Timestamp</th><th style='min-width:120px'>Cenário</th><th style='min-width:160px'>Ação</th><th style='min-width:140px'>Quem Fez</th><th style='min-width:200px'>Detalhe</th><th style='min-width:100px'>Alvo</th><th style='min-width:120px'>IP</th></tr></thead><tbody>$tblEv</tbody></table></div>"}else{"<p style='color:#6e7681'>Nenhum evento de alteração nos últimos $DaysBack dias. Execute a query no <a href='$($portal.Hunt)' target='_blank' style='color:#58a6ff'>Advanced Hunting</a> para verificar.</p>"})
+</div></div>
 
-<!-- S3: GRÁFICOS -->
-<div class="sc"><div class="st">&#x1F4CA; 3. Análise de Eventos</div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Visualização dos $tEv eventos de alteração de permissão nos últimos $DaysBack dias. O <b>donut</b> mostra a distribuição por tipo - se 100% são grupos, significa que nenhuma role foi alterada diretamente (comum). As <b>barras</b> revelam os top atores - barras <span style="color:#f85149">vermelhas</span> indicam concentração alta (>40% das ações). A <b>timeline</b> mostra picos - barras <span style="color:#f85149">vermelhas</span> são dias com volume anômalo (>70% do máximo).</div>
+<!-- S4: ANÁLISE VISUAL (complemento) -->
+<div class="sc"><div class="st">&#x1F4CA; 4. Análise Visual</div><div class="sb">
+<div class="rt"><b>Complemento visual dos eventos acima.</b> O <b>donut</b> mostra se as alterações são de roles (alto impacto) ou grupos (comum). <b>Top atores</b> revela concentração - barras <span style="color:#f85149">vermelhas</span> = >40% das ações. <b>Timeline</b> identifica picos anômalos.</div>
 <div class="gr">
 <div><h4 style="color:#6e7681;font-size:11px;margin-bottom:6px">Distribuição por Cenário</h4>
 <svg viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:#0d1117;border-radius:6px;border:1px solid #21262d;font-family:'Segoe UI',sans-serif">$svgD</svg></div>
@@ -381,54 +386,49 @@ $tblDetail
 <svg viewBox="0 0 780 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:#0d1117;border-radius:6px;border:1px solid #21262d;font-family:'Segoe UI',sans-serif">$svgT</svg>
 </div></div>
 
-<!-- S4: EVENTOS -->
-<div class="sc"><div class="st">&#x1F50D; 4. Eventos Detalhados (últimos 50)<a href="$($portal.Audit)" target="_blank">Audit Log &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Cada linha é uma alteração de permissão detectada. Borda <span style="color:#f85149">&#x25CF; vermelha</span> = alta severidade (role direta ou RBAC). Borda <span style="color:#d29922">&#x25CF; amarela</span> = média (grupo). Investigue se: (1) QuemFez é conta administrativa esperada, (2) horário é dentro do expediente, (3) IP é de localização conhecida.</div>
-$(if($tblEv){"<div style='max-height:400px;overflow:auto'><table style='min-width:950px'><thead><tr><th style='min-width:130px'>Timestamp</th><th style='min-width:120px'>Cenário</th><th style='min-width:160px'>Ação</th><th style='min-width:140px'>Quem</th><th style='min-width:200px'>Detalhe</th><th style='min-width:100px'>Alvo</th><th style='min-width:120px'>IP</th></tr></thead><tbody>$tblEv</tbody></table></div>"}else{"<p style='color:#6e7681'>Sem eventos. Execute a query no <a href='$($portal.Hunt)' target='_blank' style='color:#58a6ff'>Advanced Hunting</a>.</p>"})
+<!-- S5: COMO MONITORAR (solução proativa) -->
+<div class="sc"><div class="st">&#x1F6A8; 5. Como Monitorar - Detection Rule para o SOC</div><div class="sb">
+<div class="rt"><b>Solução proativa:</b> A query abaixo cria um <b>alerta automático</b> no Defender XDR sempre que alguém alterar permissões. O SOC recebe um incidente na fila de trabalho. $(if($dGrp.Count -gt 0){"Filtro de grupos configurado para: <b>$($dGrp -join ', ')</b>."}else{"Sem filtro de grupo específico."})</div>
+<div class="ins"><h3>Passo a passo para criar a Detection Rule</h3><ol>
+<li>Abrir <a href="$($portal.Hunt)" target="_blank" style="color:#58a6ff">Advanced Hunting</a></li>
+<li>Copiar a query abaixo e colar no editor</li>
+<li>Clicar em <b>Run query</b> para validar</li>
+<li>Clicar em <b>Create detection rule</b></li>
+<li>Nome: <code>Alteracao Permissoes Defender XDR</code> | Sev: <code>High</code> | Cat: <code>PrivilegeEscalation</code> | Freq: <code>1h</code></li>
+<li>Em Actions: <b>Criar incidente</b></li></ol></div>
+<button class="cp" onclick="navigator.clipboard.writeText(document.getElementById('k2').textContent).then(()=>{this.textContent='&#x2705;';setTimeout(()=>{this.textContent='Copiar'},2000)})">Copiar</button>
+<div class="kql" id="k2">$kR</div>
+<br style="clear:both"><br>
+<details style="color:#6e7681;font-size:11px"><summary style="cursor:pointer;color:#58a6ff">&#x26A1; Query de levantamento completo (sem filtros - para investigação)</summary>
+<br><button class="cp" onclick="navigator.clipboard.writeText(document.getElementById('k1').textContent).then(()=>{this.textContent='&#x2705;';setTimeout(()=>{this.textContent='Copiar'},2000)})">Copiar</button>
+<div class="kql" id="k1">$kH</div>
+</details>
 </div></div>
 
-<!-- S5: KQL LEVANTAMENTO -->
-<div class="sc"><div class="st">&#x26A1; 5. KQL - Levantamento<a href="$($portal.Hunt)" target="_blank">Advanced Hunting &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Query que busca <b>todos</b> os eventos de alteração de permissão sem filtros. Use para investigação completa. Une 4 cenários de 2 tabelas: <code>CloudAppEvents</code> (Entra ID cloud) e <code>IdentityDirectoryEvents</code> (AD on-prem).</div>
-<button class="cp" onclick="navigator.clipboard.writeText(document.getElementById('k1').textContent).then(()=>{this.textContent='&#x2705;';setTimeout(()=>{this.textContent='Copiar'},2000)})">Copiar</button>
-<div class="kql" id="k1">$kH</div></div></div>
-
-<!-- S6: KQL DETECTION RULE -->
-<div class="sc"><div class="st">&#x1F6A8; 6. KQL - Detection Rule</div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Versão da query otimizada para criar a <b>Detection Rule</b> que alerta o SOC. $(if($dGrp.Count -gt 0){"Filtra grupos para monitorar apenas: <b>$($dGrp -join ', ')</b> (mapeados via Graph API)."}else{"Sem filtro de grupo - monitora todos."}) Quando disparar, cria um <b>incidente na fila do Defender</b>.</div>
-<div class="ins"><h3>Criar a Detection Rule</h3><ol>
-<li>Abrir <a href="$($portal.Hunt)" target="_blank" style="color:#58a6ff">Advanced Hunting</a></li>
-<li>Copiar a query abaixo e colar</li>
-<li><b>Run query</b> para validar</li>
-<li><b>Create detection rule</b></li>
-<li>Nome: <code>Alteracao Permissoes Defender XDR</code> | Sev: <code>High</code> | Cat: <code>PrivilegeEscalation</code> | Freq: <code>1h</code></li>
-<li>Actions: <b>Criar incidente</b></li></ol></div>
-<button class="cp" onclick="navigator.clipboard.writeText(document.getElementById('k2').textContent).then(()=>{this.textContent='&#x2705;';setTimeout(()=>{this.textContent='Copiar'},2000)})">Copiar</button>
-<div class="kql" id="k2">$kR</div></div></div>
-
-<!-- S7: PERMISSÕES -->
-<div class="sc"><div class="st">&#x1F511; 7. Permissões do Script</div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Transparência sobre o que o script precisa para funcionar. Segue o princípio de <b>least privilege</b> - apenas leitura, nenhuma escrita. O script <b>não altera</b> nenhuma configuração no tenant.<br>
-&#x1F4D6; <a href="https://learn.microsoft.com/defender-xdr/manage-rbac#permissions-prerequisites" target="_blank">Ref: Prerequisites</a></div>
-<table><thead><tr><th>Permissão Graph</th><th>Para quê</th><th>Impacto</th></tr></thead><tbody>
-<tr><td>Directory.Read.All</td><td>Ler grupos, usuários, service principals</td><td>Somente leitura</td></tr>
-<tr><td>RoleManagement.Read.All</td><td>Ler role assignments (Entra ID + Defender RBAC)</td><td>Somente leitura</td></tr>
-<tr><td>ThreatHunting.Read.All</td><td>Executar queries no Advanced Hunting</td><td>Somente leitura</td></tr>
-</tbody></table></div></div>
-
-<!-- S8: REFS -->
-<div class="sc"><div class="st">&#x1F4DA; 8. Referências</div><div class="sb">
-<div class="rt"><b>Por que esta seção existe:</b> Toda decisão técnica é rastreável. ActionTypes, schemas e APIs utilizados estão documentados nas fontes oficiais abaixo.</div>
-<table><thead><tr><th>Tema</th><th>URL</th></tr></thead><tbody>
-<tr><td>Unified RBAC</td><td><a href="https://learn.microsoft.com/defender-xdr/manage-rbac" target="_blank" style="color:#58a6ff">learn.microsoft.com/defender-xdr/manage-rbac</a></td></tr>
-<tr><td>Auditing no Defender XDR</td><td><a href="https://learn.microsoft.com/defender-xdr/microsoft-xdr-auditing" target="_blank" style="color:#58a6ff">learn.microsoft.com/defender-xdr/microsoft-xdr-auditing</a></td></tr>
-<tr><td>CloudAppEvents Queries</td><td><a href="https://learn.microsoft.com/defender-cloud-apps/ops-guide/ops-guide-ad-hoc" target="_blank" style="color:#58a6ff">learn.microsoft.com/defender-cloud-apps/ops-guide</a></td></tr>
-<tr><td>CloudAppEvents Schema</td><td><a href="https://learn.microsoft.com/defender-xdr/advanced-hunting-cloudappevents-table" target="_blank" style="color:#58a6ff">learn.microsoft.com/.../cloudappevents-table</a></td></tr>
-<tr><td>IdentityDirectoryEvents</td><td><a href="https://learn.microsoft.com/defender-xdr/advanced-hunting-identitydirectoryevents-table" target="_blank" style="color:#58a6ff">learn.microsoft.com/.../identitydirectoryevents-table</a></td></tr>
-<tr><td>Audit Log Activities</td><td><a href="https://learn.microsoft.com/purview/audit-log-activities" target="_blank" style="color:#58a6ff">learn.microsoft.com/purview/audit-log-activities</a></td></tr>
-<tr><td>Graph API Audits</td><td><a href="https://learn.microsoft.com/graph/api/directoryaudit-list" target="_blank" style="color:#58a6ff">learn.microsoft.com/graph/api/directoryaudit-list</a></td></tr>
-<tr><td>Custom RBAC Roles</td><td><a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank" style="color:#58a6ff">learn.microsoft.com/.../create-custom-rbac-roles</a></td></tr>
-</tbody></table></div></div>
+<!-- S6: TÉCNICO (referências + permissões) -->
+<div class="sc"><div class="st">&#x1F4DA; 6. Informações Técnicas</div><div class="sb">
+<div class="rt"><b>Transparência:</b> O script usa apenas permissões de <b>leitura</b>. Não altera nenhuma configuração no tenant. Todas as decisões técnicas são fundamentadas na documentação oficial listada abaixo.</div>
+<div class="gr">
+<div>
+<h4 style="color:#6e7681;font-size:11px;margin-bottom:6px">Permissões do Script</h4>
+<table><thead><tr><th>Permissão</th><th>Finalidade</th></tr></thead><tbody>
+<tr><td>Directory.Read.All</td><td>Ler grupos, usuários, SPs</td></tr>
+<tr><td>RoleManagement.Read.All</td><td>Ler roles (Entra + Defender)</td></tr>
+<tr><td>ThreatHunting.Read.All</td><td>Executar KQL</td></tr>
+</tbody></table>
+</div>
+<div>
+<h4 style="color:#6e7681;font-size:11px;margin-bottom:6px">Referências Oficiais</h4>
+<table><thead><tr><th>Tema</th><th>Link</th></tr></thead><tbody>
+<tr><td>Unified RBAC</td><td><a href="https://learn.microsoft.com/defender-xdr/manage-rbac" target="_blank" style="color:#58a6ff">manage-rbac</a></td></tr>
+<tr><td>Auditing</td><td><a href="https://learn.microsoft.com/defender-xdr/microsoft-xdr-auditing" target="_blank" style="color:#58a6ff">xdr-auditing</a></td></tr>
+<tr><td>CloudAppEvents</td><td><a href="https://learn.microsoft.com/defender-cloud-apps/ops-guide/ops-guide-ad-hoc" target="_blank" style="color:#58a6ff">ops-guide</a></td></tr>
+<tr><td>Custom Roles</td><td><a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank" style="color:#58a6ff">create-roles</a></td></tr>
+<tr><td>Graph API</td><td><a href="https://learn.microsoft.com/graph/api/directoryaudit-list" target="_blank" style="color:#58a6ff">directoryaudit</a></td></tr>
+</tbody></table>
+</div>
+</div>
+</div></div>
 
 <!-- FOOTER -->
 <div class="ft">
