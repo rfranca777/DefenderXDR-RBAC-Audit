@@ -155,10 +155,10 @@ $svgNodes = ""; $svgLines = ""; $sy = 50; $wlPositions = @()
 
 # Workloads (esquerda) - com tooltip de detalhes
 foreach($w in $wl){$op=if($w.A){"1"}else{".3"};$sc=if($w.A){$w.C}else{"#484f58"};$stTxt=if($w.A){"Ativo - dados disponíveis no Advanced Hunting"}else{"Sem dados - verificar conector"}
-$svgNodes+="<g transform='translate(10,$sy)' opacity='$op' style='cursor:pointer'><title>$($w.F)`n$stTxt</title><rect width='130' height='36' rx='6' fill='#161b22' stroke='$sc' stroke-width='1.5'/><text x='8' y='15' fill='$sc' font-family='Segoe UI' font-size='9' font-weight='700'>$($w.N)</text><text x='8' y='28' fill='#6e7681' font-family='Segoe UI' font-size='7'>$($w.F)</text>"
-$svgNodes+="<circle cx='120' cy='10' r='3.5' fill='$(if($w.A){"#3fb950"}else{"#f85149"})'/></g>`n"
+$svgNodes+="<g transform='translate(10,$sy)' opacity='$op' style='cursor:pointer'><title>$($w.F)`n$stTxt</title><rect width='120' height='30' rx='5' fill='#161b22' stroke='$sc' stroke-width='1.2'/><text x='7' y='13' fill='$sc' font-family='Segoe UI' font-size='7' font-weight='700'>$($w.N)</text><text x='7' y='24' fill='#6e7681' font-family='Segoe UI' font-size='5.5'>$($w.F)</text>"
+$svgNodes+="<circle cx='112' cy='8' r='3' fill='$(if($w.A){"#3fb950"}else{"#f85149"})'/></g>`n"
 $wlPositions += @{Y=$sy;C=$sc;Op=$op}
-$sy+=44}
+$sy+=36}
 
 # Roles/Grupos (direita) - coletar com detalhes para tooltip
 $ry = 50; $rightNodes = @()
@@ -180,13 +180,13 @@ foreach($g in $dGrp){
 # Centro: XDR - calcular APÓS ambos os lados
 $centerY = [Math]::Max(60, [Math]::Floor(([Math]::Max($sy, $ry) / 2) - 25))
 $svgNodes+="<g style='cursor:pointer'><title>Microsoft Defender XDR`nPortal: security.microsoft.com`nModelo: Unified RBAC`n`nO acesso é controlado por:`n- Entra ID Roles (à direita)`n- Grupos do Unified RBAC (à direita)</title>"
-$svgNodes+="<rect x='200' y='$centerY' width='100' height='50' rx='8' fill='#21262d' stroke='#58a6ff' stroke-width='1.5'/>"
-$svgNodes+="<text x='250' y='$($centerY+22)' fill='#58a6ff' font-family='Segoe UI' font-size='9' text-anchor='middle' font-weight='700'>DEFENDER XDR</text>"
-$svgNodes+="<text x='250' y='$($centerY+37)' fill='#6e7681' font-family='Segoe UI' font-size='7' text-anchor='middle'>Unified RBAC</text></g>`n"
+$svgNodes+="<rect x='190' y='$centerY' width='90' height='40' rx='7' fill='#21262d' stroke='#58a6ff' stroke-width='1.2'/>"
+$svgNodes+="<text x='235' y='$($centerY+18)' fill='#58a6ff' font-family='Segoe UI' font-size='7' text-anchor='middle' font-weight='700'>DEFENDER XDR</text>"
+$svgNodes+="<text x='235' y='$($centerY+30)' fill='#6e7681' font-family='Segoe UI' font-size='5.5' text-anchor='middle'>Unified RBAC</text></g>`n"
 
 # Linhas workloads → centro
 foreach($wp in $wlPositions){
-    $svgLines+="<line x1='140' y1='$($wp.Y+18)' x2='200' y2='$($centerY+25)' stroke='$($wp.C)' stroke-width='.8' stroke-dasharray='3' opacity='$($wp.Op)'/>`n"
+    $svgLines+="<line x1='130' y1='$($wp.Y+15)' x2='190' y2='$($centerY+20)' stroke='$($wp.C)' stroke-width='.6' stroke-dasharray='3' opacity='$($wp.Op)'/>`n"
 }
 
 # Nós direita + linhas centro → roles/grupos
@@ -195,15 +195,15 @@ foreach($rn in $rightNodes){
     $cntBadge=""
     if($rn.Cnt -gt 0){
         $badgeFill=if($rn.Type -eq "group"){"#3fb950"}else{$rn.C}
-        $cntBadge="<rect x='148' y='2' width='20' height='16' rx='8' fill='${badgeFill}25' stroke='$badgeFill' stroke-width='.5'/><text x='158' y='14' fill='$badgeFill' font-family='Segoe UI' font-size='8' text-anchor='middle' font-weight='700'>$($rn.Cnt)</text>"
+        $cntBadge="<rect x='133' y='3' width='18' height='14' rx='7' fill='${badgeFill}25' stroke='$badgeFill' stroke-width='.5'/><text x='142' y='13' fill='$badgeFill' font-family='Segoe UI' font-size='6.5' text-anchor='middle' font-weight='700'>$($rn.Cnt)</text>"
     }
     # Tooltip com detalhes dos membros
     $tipEscaped = $rn.Tip -replace "'","&#39;"
-    $svgNodes+="<g transform='translate(340,$($rn.Y))' style='cursor:pointer'><title>$tipEscaped</title>"
-    $svgNodes+="<rect width='170' height='22' rx='4' fill='$($rn.C)08' stroke='$($rn.C)' stroke-width='.8'/>"
-    $svgNodes+="<text x='5' y='14' fill='$($rn.C)' font-family='Segoe UI' font-size='7.5' font-weight='600'>$typeIcon $($rn.N)</text>"
+    $svgNodes+="<g transform='translate(320,$($rn.Y))' style='cursor:pointer'><title>$tipEscaped</title>"
+    $svgNodes+="<rect width='155' height='20' rx='4' fill='$($rn.C)08' stroke='$($rn.C)' stroke-width='.7'/>"
+    $svgNodes+="<text x='4' y='13' fill='$($rn.C)' font-family='Segoe UI' font-size='6' font-weight='600'>$typeIcon $($rn.N)</text>"
     $svgNodes+="$cntBadge</g>`n"
-    $svgLines+="<line x1='300' y1='$($centerY+25)' x2='340' y2='$($rn.Y+11)' stroke='$($rn.C)' stroke-width='.6' stroke-dasharray='3' opacity='.3'/>`n"
+    $svgLines+="<line x1='280' y1='$($centerY+20)' x2='320' y2='$($rn.Y+10)' stroke='$($rn.C)' stroke-width='.5' stroke-dasharray='3' opacity='.3'/>`n"
 }
 
 # Combinar: linhas atrás, nós na frente
@@ -237,7 +237,8 @@ foreach($rn in ($rd|Where-Object{$_.Name -ne "(vazio)"}|Select-Object -Property 
     foreach($m in $members){
         $bc=switch($m.Typ){"user"{"#1f6feb33;color:#58a6ff"}"group"{"#3fb95033;color:#3fb950"}"servicePrincipal"{"#d2992233;color:#d29922"}default{"#30363d;color:#8b949e"}}
         $co2=if($rC.ContainsKey($rn)){$rC[$rn]}else{"#8b949e"}
-        $tblDetail+="<tr><td style='color:$co2;font-weight:600'>$rn</td><td><span style='background:$bc;padding:1px 6px;border-radius:8px;font-size:10px'>$($m.Typ)</span></td><td>$($m.Name)</td><td class='m'>$($m.Id)</td></tr>`n"
+        $entraLink = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/UserDetailsMenuBlade/~/AllUsers"
+        $tblDetail+="<tr><td style='color:$co2;font-weight:600'>$rn</td><td><span style='background:$bc;padding:1px 6px;border-radius:8px;font-size:10px'>$($m.Typ)</span></td><td><a href='$entraLink' target='_blank' style='color:#c9d1d9;text-decoration:none' title='Abrir no Entra ID'>$($m.Name)</a></td><td class='m' title='$($m.Id)'>$($m.Id)</td></tr>`n"
     }
 }
 # Grupos RBAC na mesma tabela
@@ -339,11 +340,11 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 </div></div>
 
 <div class="cds">
-<div class="cd c1"><div class="n">$tRA</div><div class="l">Role Assignments</div></div>
-<div class="cd c2"><div class="n">$tRB</div><div class="l">RBAC Custom</div></div>
-<div class="cd c3"><div class="n">$tEv</div><div class="l">Eventos</div></div>
-<div class="cd c4"><div class="n">$($dGrp.Count)</div><div class="l">Grupos Críticos</div></div>
-<div class="cd c5"><div class="n">$aWL/4</div><div class="l">Workloads</div></div>
+<div class="cd c1"><div class="n">$tRA</div><div class="l">Entra ID Role<br>Assignments</div></div>
+<div class="cd c2"><div class="n">$tRB</div><div class="l">Defender RBAC<br>Custom Roles</div></div>
+<div class="cd c3"><div class="n">$tEv</div><div class="l">Eventos de Alteração<br>(últimos $DaysBack dias)</div></div>
+<div class="cd c4"><div class="n">$($dGrp.Count)</div><div class="l">Grupos no<br>Unified RBAC</div></div>
+<div class="cd c5"><div class="n">$aWL<span style='font-size:14px;color:#6e7681'>/4</span></div><div class="l">Workloads<br>Ativos</div></div>
 </div>
 
 <!-- S1: MAPA -->
@@ -351,10 +352,10 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 <div class="rt"><b>Por que esta seção existe:</b> O Defender XDR agrega 4 soluções (MDE, MDO, MDI, MDCA) num portal unificado. O acesso é controlado por <b>Entra ID Roles</b> (à direita, com &#x1F511;) e <b>Grupos do Unified RBAC</b> (à direita, com &#x1F465;). À esquerda estão os workloads com status de ativação. O número em cada role indica quantos principals têm acesso. Linhas tracejadas mostram o fluxo: workload → Defender XDR → role/grupo.<br><br>
 <b>Como ler:</b> Se um workload está ativo (&#x25CF; verde) mas nenhuma role tem membros, o acesso pode estar vindo de Global Administrator ou de um grupo RBAC.<br>
 &#x1F4D6; <a href="https://learn.microsoft.com/defender-xdr/manage-rbac" target="_blank">Ref: Unified RBAC</a></div>
-<svg viewBox="0 0 520 $svgH1" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:#0d1117;border-radius:6px;border:1px solid #21262d;font-family:'Segoe UI',sans-serif">
-<text x='75' y='35' fill='#6e7681' font-family='Segoe UI' font-size='8' text-anchor='middle' font-weight='600'>WORKLOADS</text>
-<text x='250' y='35' fill='#58a6ff' font-family='Segoe UI' font-size='8' text-anchor='middle' font-weight='600'>PORTAL</text>
-<text x='425' y='35' fill='#6e7681' font-family='Segoe UI' font-size='8' text-anchor='middle' font-weight='600'>ROLES / GRUPOS</text>
+<svg viewBox="0 0 490 $svgH1" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:#0d1117;border-radius:6px;border:1px solid #21262d;font-family:'Segoe UI',sans-serif">
+<text x='65' y='38' fill='#6e7681' font-family='Segoe UI' font-size='6' text-anchor='middle' font-weight='600'>WORKLOADS</text>
+<text x='235' y='38' fill='#58a6ff' font-family='Segoe UI' font-size='6' text-anchor='middle' font-weight='600'>PORTAL</text>
+<text x='400' y='38' fill='#6e7681' font-family='Segoe UI' font-size='6' text-anchor='middle' font-weight='600'>ROLES / GRUPOS</text>
 $svg1
 </svg></div></div>
 
@@ -383,7 +384,7 @@ $tblDetail
 <!-- S4: EVENTOS -->
 <div class="sc"><div class="st">&#x1F50D; 4. Eventos Detalhados (últimos 50)<a href="$($portal.Audit)" target="_blank">Audit Log &#x2192;</a></div><div class="sb">
 <div class="rt"><b>Por que esta seção existe:</b> Cada linha é uma alteração de permissão detectada. Borda <span style="color:#f85149">&#x25CF; vermelha</span> = alta severidade (role direta ou RBAC). Borda <span style="color:#d29922">&#x25CF; amarela</span> = média (grupo). Investigue se: (1) QuemFez é conta administrativa esperada, (2) horário é dentro do expediente, (3) IP é de localização conhecida.</div>
-$(if($tblEv){"<div style='max-height:350px;overflow-y:auto'><table><thead><tr><th>Timestamp</th><th>Cenário</th><th>Ação</th><th>Quem</th><th>Detalhe</th><th>Alvo</th><th>IP</th></tr></thead><tbody>$tblEv</tbody></table></div>"}else{"<p style='color:#6e7681'>Sem eventos. Execute a query no <a href='$($portal.Hunt)' target='_blank' style='color:#58a6ff'>Advanced Hunting</a>.</p>"})
+$(if($tblEv){"<div style='max-height:400px;overflow:auto'><table style='min-width:950px'><thead><tr><th style='min-width:130px'>Timestamp</th><th style='min-width:120px'>Cenário</th><th style='min-width:160px'>Ação</th><th style='min-width:140px'>Quem</th><th style='min-width:200px'>Detalhe</th><th style='min-width:100px'>Alvo</th><th style='min-width:120px'>IP</th></tr></thead><tbody>$tblEv</tbody></table></div>"}else{"<p style='color:#6e7681'>Sem eventos. Execute a query no <a href='$($portal.Hunt)' target='_blank' style='color:#58a6ff'>Advanced Hunting</a>.</p>"})
 </div></div>
 
 <!-- S5: KQL LEVANTAMENTO -->
