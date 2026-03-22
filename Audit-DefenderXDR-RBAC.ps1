@@ -115,6 +115,52 @@ try{
 }catch{Write-Warn "RBAC: $($_.Exception.Message)";$rb+=[PSCustomObject]@{CR="(indisponível)";Pm="-";To="-";TT="-";Mb="-"}}
 
 # ═══════════════════════════════════════════
+# 4b. MAPEAMENTO DE CAMINHOS DE ACESSO
+# ═══════════════════════════════════════════
+Write-Step "Mapeando caminhos de acesso..."
+$accessPaths = @()
+$levelMap = @{
+    "Global Administrator"="FULL ADMIN";"Security Administrator"="FULL SECURITY";
+    "Security Operator"="OPERATOR";"Security Reader"="READ-ONLY";
+    "Global Reader"="READ-ONLY";"Compliance Administrator"="COMPLIANCE";
+    "Compliance Data Administrator"="COMPLIANCE DATA"
+}
+$levelColors = @{
+    "FULL ADMIN"="#f85149";"FULL SECURITY"="#ff7b72";"OPERATOR"="#ffa657";
+    "READ-ONLY"="#3fb950";"COMPLIANCE"="#a5d6ff";"COMPLIANCE DATA"="#7ee787"
+}
+
+# Entra ID Roles diretas
+foreach($entry in $rd){
+    if($entry.Name -eq "(vazio)"){continue}
+    $lvl = if($levelMap.ContainsKey($entry.Role)){$levelMap[$entry.Role]}else{"OTHER"}
+    $accessPaths += [PSCustomObject]@{
+        Principal=$entry.Name; PType=$entry.Typ; Level=$lvl
+        Role=$entry.Role; Path="Entra ID Role (direto)"; Group="-"
+    }
+}
+
+# RBAC via grupo
+foreach($rbEntry in $rb){
+    if($rbEntry.To -eq "(vazio)" -or $rbEntry.To -eq "(indisponível)"){continue}
+    if($rbEntry.TT -eq "group" -and $rbEntry.Mb -and $rbEntry.Mb -ne "-" -and $rbEntry.Mb -ne "(vazio)"){
+        $permS = ($rbEntry.Pm -replace 'microsoft\.xdr/','') -replace '/\*/manage',''
+        foreach($memberName in ($rbEntry.Mb -split ",")){
+            $mn = $memberName.Trim()
+            if($mn){
+                $accessPaths += [PSCustomObject]@{
+                    Principal=$mn; PType="user (via grupo)"; Level="RBAC ($permS)"
+                    Role="RBAC: $($rbEntry.CR)"; Path="Grupo -> RBAC Role"; Group=$rbEntry.To
+                }
+            }
+        }
+    }
+}
+
+$uniquePrincipals = ($accessPaths | Select-Object -Property Principal -Unique).Count
+Write-OK "Caminhos mapeados: $($accessPaths.Count) para $uniquePrincipals principals"
+
+# ═══════════════════════════════════════════
 # 5. KQL
 # ═══════════════════════════════════════════
 Write-Step "Queries KQL..."
@@ -237,23 +283,14 @@ $svg1+="<text x='0' y='24' fill='#484f58' font-size='6' font-style='italic'>Pass
 $svg1+="</g>`n"
 $svgH1 = $legendY + 40
 
-# ── Tabela: Roles → Membros detalhados
+# ── Tabela: Caminhos de Acesso (nova - baseada em accessPaths)
 $tblDetail=""
-foreach($rn in ($rd|Where-Object{$_.Name -ne "(vazio)"}|Select-Object -Property Role -Unique).Role){
-    $members=$rd|Where-Object{$_.Role -eq $rn -and $_.Name -ne "(vazio)"}
-    foreach($m in $members){
-        $bc=switch($m.Typ){"user"{"#1f6feb33;color:#58a6ff"}"group"{"#3fb95033;color:#3fb950"}"servicePrincipal"{"#d2992233;color:#d29922"}default{"#30363d;color:#8b949e"}}
-        $co2=if($rC.ContainsKey($rn)){$rC[$rn]}else{"#8b949e"}
-        $entraLink = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/UserDetailsMenuBlade/~/AllUsers"
-        $tblDetail+="<tr><td style='color:$co2;font-weight:600' title='Escopo: Todos os workloads (MDE, MDO, MDI, MDCA)'>$rn</td><td><span style='background:$bc;padding:1px 6px;border-radius:8px;font-size:10px'>$($m.Typ)</span></td><td><a href='$entraLink' target='_blank' style='color:#c9d1d9;text-decoration:none' title='Abrir no Entra ID'>$($m.Name)</a></td><td class='m' title='$($m.Id)'>$($m.Id)</td></tr>`n"
-    }
-}
-# Grupos RBAC na mesma tabela
-foreach($g in $dGrp){
-    $rbMatch=$rb|Where-Object{$_.To -eq $g}|Select-Object -First 1
-    $scopeLabel = if($rbMatch.Pm -match '\*/'){"Global (todos os workloads)"}else{"Restrito"}
-    $permBadges = ($rbMatch.Pm -replace 'microsoft\.xdr/','') -replace '/\*/manage',''
-    $tblDetail+="<tr style='background:#3fb95008'><td style='color:#3fb950;font-weight:600'>RBAC: $($rbMatch.CR)</td><td><span style='background:#3fb95033;color:#3fb950;padding:1px 6px;border-radius:8px;font-size:10px'>grupo</span></td><td>$g</td><td class='m' title='Escopo: $scopeLabel | Permissões: $permBadges | Membros: $($rbMatch.Mb)'>Escopo: $scopeLabel<br><span style=font-size:9px>$permBadges</span><br><span style=font-size:9px>Membros: $($rbMatch.Mb)</span></td></tr>`n"
+foreach($ap in ($accessPaths | Sort-Object Level,Principal)){
+    $lvlCol = if($levelColors.ContainsKey($ap.Level)){$levelColors[$ap.Level]}else{"#8b949e"}
+    $typeBC = switch -Wildcard ($ap.PType){"user*"{"#1f6feb33;color:#58a6ff"}"group"{"#3fb95033;color:#3fb950"}"servicePrincipal"{"#d2992233;color:#d29922"}default{"#30363d;color:#8b949e"}}
+    $pathIcon = if($ap.Path -match "direto"){"&#x2192;"}else{"&#x2192; &#x1F465; &#x2192;"}
+    $groupInfo = if($ap.Group -ne "-"){"<br><span style='color:#3fb950;font-size:9px'>via $($ap.Group)</span>"}else{""}
+    $tblDetail+="<tr><td><b>$($ap.Principal)</b>$groupInfo</td><td><span style='background:$typeBC;padding:1px 6px;border-radius:8px;font-size:10px'>$($ap.PType)</span></td><td style='color:$lvlCol;font-weight:600'>$($ap.Level)</td><td>$($ap.Role)</td><td class='m'>$pathIcon $($ap.Path)</td></tr>`n"
 }
 
 # ── SVG: Donut com cores por cenário + legenda integrada
@@ -358,10 +395,10 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 
 <!-- S1: QUEM TEM ACESSO (pergunta #1 do cliente) -->
 <div class="sc"><div class="st">&#x1F465; 1. Quem tem acesso ao Defender XDR<a href="$($portal.Entra)" target="_blank">Entra ID &#x2192;</a></div><div class="sb">
-<div class="rt"><b>Esta é a pergunta principal:</b> Lista <b>todos</b> os usuários, grupos e service principals que têm acesso ao portal do Defender XDR. As permissões vêm de duas fontes: <b>Entra ID Roles</b> (roles globais como Security Administrator) e <b>Grupos do Unified RBAC</b> (roles customizadas no Defender). Cada linha mostra a role, o tipo de principal, o nome e um link para o Entra ID.<br><br>
-<b>Achados neste tenant:</b> <b>$nU</b> usuários, <b>$nG</b> grupos e <b>$nS</b> service principals com acesso.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS service principals com acesso privilegiado</b> - avaliar necessidade."})$(if($dGrp.Count -gt 0){" Grupo(s) no Unified RBAC: <b>$($dGrp -join ', ')</b>."})<br>
+<div class="rt"><b>Esta é a pergunta principal:</b> Quem tem acesso ao Defender XDR, com que <b>nível de acesso</b> e por qual <b>caminho</b>? A tabela mostra cada principal, seu tipo (user, group, service principal), o nível de acesso (<span style="color:#f85149">FULL ADMIN</span>, <span style="color:#ff7b72">FULL SECURITY</span>, <span style="color:#3fb950">READ-ONLY</span>, etc.), a role/RBAC que concede o acesso, e o caminho (direto ou via grupo).<br><br>
+<b>Achados neste tenant:</b> <b>$uniquePrincipals</b> principals com acesso via <b>$($accessPaths.Count)</b> caminhos diferentes. $nU usuários, $nG grupos, $nS service principals.$(if($nS -gt 2){" &#x26A0;&#xFE0F; <b>$nS service principals com acesso privilegiado</b> - avaliar necessidade."})$(if($dGrp.Count -gt 0){" Grupo(s) no RBAC: <b>$($dGrp -join ', ')</b>."})<br>
 &#x1F4D6; <a href="https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference" target="_blank">Ref: Entra ID Roles</a> | <a href="https://learn.microsoft.com/defender-xdr/create-custom-rbac-roles" target="_blank">Custom RBAC</a></div>
-<div style="max-height:500px;overflow:auto"><table style="min-width:700px"><thead><tr><th style="min-width:180px">Role / RBAC</th><th style="min-width:100px">Tipo</th><th style="min-width:200px">Nome</th><th style="min-width:150px">ID</th></tr></thead><tbody>
+<div style="max-height:500px;overflow:auto"><table style="min-width:800px"><thead><tr><th style="min-width:180px">Principal</th><th style="min-width:100px">Tipo</th><th style="min-width:120px">Nível de Acesso</th><th style="min-width:180px">Role / RBAC</th><th style="min-width:180px">Caminho</th></tr></thead><tbody>
 $tblDetail
 </tbody></table></div></div></div>
 
