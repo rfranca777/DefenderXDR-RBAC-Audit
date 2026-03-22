@@ -166,14 +166,16 @@ foreach($rn in ($rd|Where-Object{$_.Name -ne "(vazio)"}|Select-Object -Property 
     $mc=($rd|Where-Object{$_.Role -eq $rn -and $_.Name -ne "(vazio)"}).Count
     $co=if($rC.ContainsKey($rn)){$rC[$rn]}else{"#8b949e"}
     $memberNames=($rd|Where-Object{$_.Role -eq $rn -and $_.Name -ne "(vazio)"}|ForEach-Object{"• $($_.Name) ($($_.Typ))"})-join"`n"
-    $rightNodes += @{Y=$ry;N=$rn;C=$co;Cnt=$mc;Type="role";Tip="$rn`n$mc membro(s):`n$memberNames"}
+    $rightNodes += @{Y=$ry;N=$rn;C=$co;Cnt=$mc;Type="role";Tip="$rn (Entra ID Role)`nEscopo: TODOS os workloads (MDE, MDO, MDI, MDCA)`n$mc membro(s):`n$memberNames"}
     $ry+=28
 }
 foreach($g in $dGrp){
     $rbM=$rb|Where-Object{$_.To -eq $g}|Select-Object -First 1
     $gMemberCount=if($rbM.Mb -and $rbM.Mb -ne "(vazio)" -and $rbM.Mb -ne "-"){($rbM.Mb -split ",").Count}else{0}
-    $gTip="Grupo RBAC: $g`nRole: $($rbM.CR)`nPermissões: $($rbM.Pm)`nMembros ($gMemberCount): $($rbM.Mb)"
-    $rightNodes += @{Y=$ry;N=$g;C="#3fb950";Cnt=$gMemberCount;Type="group";Tip=$gTip}
+    $scopeTxt = if($rbM.Pm -match '\*/'){"TODOS os workloads (escopo global)"}else{"Escopo restrito - ver permissões"}
+    $permShort = ($rbM.Pm -replace 'microsoft\.xdr/','') -replace '/\*/manage',''
+    $gTip="Grupo RBAC: $g`nCustom Role: $($rbM.CR)`nEscopo: $scopeTxt`nPermissões: $permShort`nMembros ($gMemberCount): $($rbM.Mb)"
+    $rightNodes += @{Y=$ry;N="$g";C="#3fb950";Cnt=$gMemberCount;Type="group";Tip=$gTip;Perms=$permShort}
     $ry+=28
 }
 
@@ -203,6 +205,11 @@ foreach($rn in $rightNodes){
     $svgNodes+="<rect width='155' height='20' rx='4' fill='$($rn.C)08' stroke='$($rn.C)' stroke-width='.7'/>"
     $svgNodes+="<text x='4' y='13' fill='$($rn.C)' font-family='Segoe UI' font-size='6' font-weight='600'>$typeIcon $($rn.N)</text>"
     $svgNodes+="$cntBadge</g>`n"
+    # Para grupos RBAC, adicionar badges de permissão abaixo do nó
+    if($rn.Type -eq 'group' -and $rn.Perms){
+        $svgNodes+="<text x='325' y='$($rn.Y+28)' fill='#3fb95080' font-family='Segoe UI' font-size='4.5' font-style='italic'>$($rn.Perms)</text>`n"
+        $ry+=8  # espaço extra para o texto de permissões
+    }
     $svgLines+="<line x1='280' y1='$($centerY+20)' x2='320' y2='$($rn.Y+10)' stroke='$($rn.C)' stroke-width='.5' stroke-dasharray='3' opacity='.3'/>`n"
 }
 
@@ -238,13 +245,15 @@ foreach($rn in ($rd|Where-Object{$_.Name -ne "(vazio)"}|Select-Object -Property 
         $bc=switch($m.Typ){"user"{"#1f6feb33;color:#58a6ff"}"group"{"#3fb95033;color:#3fb950"}"servicePrincipal"{"#d2992233;color:#d29922"}default{"#30363d;color:#8b949e"}}
         $co2=if($rC.ContainsKey($rn)){$rC[$rn]}else{"#8b949e"}
         $entraLink = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/UserDetailsMenuBlade/~/AllUsers"
-        $tblDetail+="<tr><td style='color:$co2;font-weight:600'>$rn</td><td><span style='background:$bc;padding:1px 6px;border-radius:8px;font-size:10px'>$($m.Typ)</span></td><td><a href='$entraLink' target='_blank' style='color:#c9d1d9;text-decoration:none' title='Abrir no Entra ID'>$($m.Name)</a></td><td class='m' title='$($m.Id)'>$($m.Id)</td></tr>`n"
+        $tblDetail+="<tr><td style='color:$co2;font-weight:600' title='Escopo: Todos os workloads (MDE, MDO, MDI, MDCA)'>$rn</td><td><span style='background:$bc;padding:1px 6px;border-radius:8px;font-size:10px'>$($m.Typ)</span></td><td><a href='$entraLink' target='_blank' style='color:#c9d1d9;text-decoration:none' title='Abrir no Entra ID'>$($m.Name)</a></td><td class='m' title='$($m.Id)'>$($m.Id)</td></tr>`n"
     }
 }
 # Grupos RBAC na mesma tabela
 foreach($g in $dGrp){
     $rbMatch=$rb|Where-Object{$_.To -eq $g}|Select-Object -First 1
-    $tblDetail+="<tr style='background:#3fb95008'><td style='color:#3fb950;font-weight:600'>RBAC: $($rbMatch.CR)</td><td><span style='background:#3fb95033;color:#3fb950;padding:1px 6px;border-radius:8px;font-size:10px'>grupo</span></td><td>$g</td><td class='m'>Membros: $($rbMatch.Mb)</td></tr>`n"
+    $scopeLabel = if($rbMatch.Pm -match '\*/'){"Global (todos os workloads)"}else{"Restrito"}
+    $permBadges = ($rbMatch.Pm -replace 'microsoft\.xdr/','') -replace '/\*/manage',''
+    $tblDetail+="<tr style='background:#3fb95008'><td style='color:#3fb950;font-weight:600'>RBAC: $($rbMatch.CR)</td><td><span style='background:#3fb95033;color:#3fb950;padding:1px 6px;border-radius:8px;font-size:10px'>grupo</span></td><td>$g</td><td class='m' title='Escopo: $scopeLabel | Permissões: $permBadges | Membros: $($rbMatch.Mb)'>Escopo: $scopeLabel<br><span style=font-size:9px>$permBadges</span><br><span style=font-size:9px>Membros: $($rbMatch.Mb)</span></td></tr>`n"
 }
 
 # ── SVG: Donut com cores por cenário + legenda integrada
