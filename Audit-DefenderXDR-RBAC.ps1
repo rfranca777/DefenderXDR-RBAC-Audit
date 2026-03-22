@@ -161,6 +161,37 @@ $uniquePrincipals = ($accessPaths | Select-Object -Property Principal -Unique).C
 Write-OK "Caminhos mapeados: $($accessPaths.Count) para $uniquePrincipals principals"
 
 # ═══════════════════════════════════════════
+# 4c. QUEM ALTEROU ROLES/RBAC (evidências)
+# ═══════════════════════════════════════════
+Write-Step "Coletando evidências de alterações RBAC..."
+$rbacChanges = @()
+try {
+    $rbacChanges = Invoke-KQL @'
+CloudAppEvents
+| where ActionType in ("Add member to role.", "Remove member from role.", "AddRole", "EditRole", "DeleteRole")
+| extend RoleName = parse_json(tostring(RawEventData.ModifiedProperties[1])).NewValue
+| extend TargetName = tostring(RawEventData.Target[3].ID)
+| extend TargetType = tostring(RawEventData.Target[2].ID)
+| project Timestamp, ActionType, QuemFez=AccountDisplayName, RoleName, TargetName, TargetType, IP=IPAddress, Country=CountryCode
+| sort by Timestamp desc
+'@
+    Write-OK "Alterações de role/RBAC: $($rbacChanges.Count)"
+} catch { Write-Warn "Erro ao buscar alterações RBAC" }
+
+# Alterações nos grupos do RBAC
+$rbacGroupChanges = @()
+if ($dGrp.Count -gt 0) {
+    $grpFilter = ($dGrp | ForEach-Object { "`"$_`"" }) -join ","
+    try {
+        $rbacGroupChanges = Invoke-KQL "CloudAppEvents | where ActionType in ('Add member to group.','Remove member from group.') | extend GroupName = parse_json(tostring(RawEventData.ModifiedProperties[1])).NewValue | where GroupName has_any ($grpFilter) | extend TargetUPN = tostring(RawEventData.ObjectId) | project Timestamp, ActionType, QuemFez=AccountDisplayName, GroupName, TargetUPN, IP=IPAddress | sort by Timestamp desc"
+        Write-OK "Alterações em grupos RBAC: $($rbacGroupChanges.Count)"
+    } catch { Write-Warn "Erro ao buscar alterações de grupo RBAC" }
+}
+
+$totalRbacChanges = $rbacChanges.Count + $rbacGroupChanges.Count
+Write-OK "Total evidências RBAC: $totalRbacChanges"
+
+# ═══════════════════════════════════════════
 # 5. KQL
 # ═══════════════════════════════════════════
 Write-Step "Queries KQL..."
@@ -293,6 +324,22 @@ foreach($ap in ($accessPaths | Sort-Object Level,Principal)){
     $tblDetail+="<tr><td><b>$($ap.Principal)</b>$groupInfo</td><td><span style='background:$typeBC;padding:1px 6px;border-radius:8px;font-size:10px'>$($ap.PType)</span></td><td style='color:$lvlCol;font-weight:600'>$($ap.Level)</td><td>$($ap.Role)</td><td class='m'>$pathIcon $($ap.Path)</td></tr>`n"
 }
 
+# ── Tabela: Evidências de alteração RBAC
+$tblRbacEvidence = ""
+$auditBaseUrl = "https://security.microsoft.com/auditlogsearch"
+foreach($rc in $rbacChanges){
+    $actionColor = if($rc.ActionType -match "Add"){"#3fb950"}elseif($rc.ActionType -match "Remove"){"#f85149"}else{"#d29922"}
+    $actionIcon = if($rc.ActionType -match "Add"){"&#x2795;"}elseif($rc.ActionType -match "Remove"){"&#x274C;"}else{"&#x270F;"}
+    $ts2 = ([datetime]$rc.Timestamp).ToString("yyyy-MM-dd HH:mm")
+    $tblRbacEvidence += "<tr style='border-left:3px solid $actionColor'><td class='m'>$ts2</td><td style='color:$actionColor;font-weight:600'>$actionIcon $($rc.ActionType)</td><td><b>$($rc.QuemFez)</b></td><td>$($rc.RoleName)</td><td>$($rc.TargetName) <span style='color:#6e7681;font-size:9px'>($($rc.TargetType))</span></td><td class='m'>$($rc.IP)</td></tr>`n"
+}
+foreach($gc in $rbacGroupChanges){
+    $actionColor = if($gc.ActionType -match "Add"){"#3fb950"}else{"#f85149"}
+    $actionIcon = if($gc.ActionType -match "Add"){"&#x2795;"}else{"&#x274C;"}
+    $ts2 = ([datetime]$gc.Timestamp).ToString("yyyy-MM-dd HH:mm")
+    $tblRbacEvidence += "<tr style='border-left:3px solid $actionColor'><td class='m'>$ts2</td><td style='color:$actionColor;font-weight:600'>$actionIcon Grupo RBAC</td><td><b>$($gc.QuemFez)</b></td><td>$($gc.GroupName)</td><td>$($gc.TargetUPN)</td><td class='m'>$($gc.IP)</td></tr>`n"
+}
+
 # ── SVG: Donut com cores por cenário + legenda integrada
 $svgD="";$dC=@{"1-Role Entra ID"="#f85149";"2-Grupo Entra ID"="#58a6ff";"3-Custom Role RBAC"="#3fb950";"4-Grupo AD on-prem"="#d29922"}
 $dLabels=@{"1-Role Entra ID"="Atribuição direta de Entra ID Role";"2-Grupo Entra ID"="Alteração de membership em grupo";"3-Custom Role RBAC"="Criação/edição de role no Unified RBAC";"4-Grupo AD on-prem"="Alteração de grupo no Active Directory"}
@@ -401,6 +448,14 @@ td{padding:6px 8px;border-bottom:1px solid #1c2128}tr:hover{background:#1c2128}
 <div style="max-height:500px;overflow:auto"><table style="min-width:800px"><thead><tr><th style="min-width:180px">Principal</th><th style="min-width:100px">Tipo</th><th style="min-width:120px">Nível de Acesso</th><th style="min-width:180px">Role / RBAC</th><th style="min-width:180px">Caminho</th></tr></thead><tbody>
 $tblDetail
 </tbody></table></div></div></div>
+
+<!-- S1b: EVIDÊNCIAS RBAC -->
+<div class="sc"><div class="st">&#x1F6A8; 1b. Quem criou, alterou ou removeu acessos RBAC<a href="$($portal.Audit)" target="_blank">Audit Log &#x2192;</a></div><div class="sb">
+<div class="rt"><b>Evidências de alteração:</b> Mostra <b>especificamente</b> quem criou, modificou ou removeu roles e acessos RBAC. Foco em ações de <b>alto impacto</b>: atribuição/remoção de Entra ID Roles e criação/edição de custom roles.$(if($dGrp.Count -gt 0){" Inclui alterações nos grupos do RBAC: <b>$($dGrp -join ', ')</b>."})<br><br>
+<b>Total:</b> <b>$totalRbacChanges</b> alterações detectadas. <span style="color:#3fb950">&#x2795; adição</span> | <span style="color:#f85149">&#x274C; remoção</span> | <span style="color:#d29922">&#x270F; edição</span><br>
+&#x1F517; <a href="$auditBaseUrl" target="_blank">Audit Log</a> | <a href="$($portal.Hunt)" target="_blank">Advanced Hunting</a></div>
+$(if($tblRbacEvidence){"<div style='overflow:auto'><table style='min-width:800px'><thead><tr><th style='min-width:120px'>Quando</th><th style='min-width:140px'>Ação</th><th style='min-width:140px'>Quem Fez</th><th style='min-width:140px'>Role</th><th style='min-width:180px'>Alvo</th><th style='min-width:100px'>IP</th></tr></thead><tbody>$tblRbacEvidence</tbody></table></div>"}else{"<div style='background:#21262d;border-radius:6px;padding:16px;text-align:center'><span style='color:#3fb950;font-size:14px'>&#x2705;</span><br><span style='color:#8b949e'>Nenhuma alteração de RBAC nos últimos $DaysBack dias - estabilidade nas permissões.</span></div>"})
+</div></div>
 
 <!-- S2: MAPA VISUAL (contexto do acesso) -->
 <div class="sc"><div class="st">&#x1F5FA;&#xFE0F; 2. Mapa de Permissões<a href="$($portal.Perms)" target="_blank">Portal &#x2192;</a></div><div class="sb">
