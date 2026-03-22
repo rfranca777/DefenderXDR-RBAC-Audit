@@ -19,7 +19,7 @@ param([string]$OutputPath = (Get-Location).Path, [int]$DaysBack = 30)
 
 $ErrorActionPreference = "Stop"
 
-# Validar módulos necessários — tentar importar, instalar se ausente
+# Validar módulos necessários - tentar importar, instalar se ausente
 $requiredModules = @("Microsoft.Graph.Authentication","Microsoft.Graph.Identity.DirectoryManagement","Microsoft.Graph.Identity.Governance","Microsoft.Graph.Groups","Microsoft.Graph.DirectoryObjects","Microsoft.Graph.Security")
 foreach ($mod in $requiredModules) {
     if (-not (Get-Module -ListAvailable -Name $mod -ErrorAction SilentlyContinue)) {
