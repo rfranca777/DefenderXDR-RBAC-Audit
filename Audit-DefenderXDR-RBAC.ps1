@@ -1,4 +1,4 @@
-# Compatível com PowerShell 5.1+ e PowerShell 7+
+﻿# Compatível com PowerShell 5.1+ e PowerShell 7+
 # Módulos necessários: Microsoft.Graph (Install-Module Microsoft.Graph -Scope CurrentUser)
 <#
 .SYNOPSIS
@@ -291,7 +291,7 @@ $tmask=Mask $ctx.TenantId
 # ═══════════════════════════════════════════
 # HTML OUTPUT
 # ═══════════════════════════════════════════
-@"
+$htmlContent = @"
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Defender XDR RBAC Audit</title>
 <style>
@@ -437,7 +437,10 @@ $(if($tblEv){"<div style='max-height:350px;overflow-y:auto'><table><thead><tr><t
 </div>
 
 </div></body></html>
-"@ | Out-File -FilePath $reportFile -Encoding UTF8
+"@
+
+# Gravar HTML com UTF-8 (compatível PS 5.1 e 7)
+[System.IO.File]::WriteAllText($reportFile, $htmlContent, [System.Text.Encoding]::UTF8)
 
 Write-OK "Relatório: $reportFile"
 Start-Process $reportFile
